@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using TShockAPI;
+using System;
 
 namespace ChestControl
 {
@@ -18,6 +19,7 @@ namespace ChestControl
             TShockAPI.Commands.ChatCommands.Add(new Command("protectchest", SetPasswordChest, "clock", "lockchest", "chestlock") {DoLog = false});
 
             TShockAPI.Commands.ChatCommands.Add(new Command("refillchest", SetRefillChest, "crefill", "refillchest", "chestrefill"));
+            TShockAPI.Commands.ChatCommands.Add( new Command( "refillchest", SetTimedRefillChest, "ctrefill", "timedrefillchest", "chesttimedrefill" ) );
 
             //everyone can unlock
             TShockAPI.Commands.ChatCommands.Add(new Command(UnLockChest, "cunlock", "unlockchest", "chestunlock") {DoLog = false});
@@ -32,7 +34,8 @@ namespace ChestControl
                                           "openallchests",
                                           "removechestprotection",
                                           "showchestinfo",
-                                          "refillchest"
+                                          "refillchest",
+                                          "timedrefillchest"
                                       };
                 TShock.Groups.AddPermissions("trustedadmin", permissions);
             }
@@ -123,7 +126,50 @@ namespace ChestControl
             }
         }
 
-        private static void UnLockChest(CommandArgs args)
+        private static void SetTimedRefillChest( CommandArgs args )
+        {
+          ChestControl.Players[args.Player.Index].RefillDelay = 0;
+          if ( ChestControl.Players[args.Player.Index].GetState() == SettingState.RefillSetting ||
+               ChestControl.Players[args.Player.Index].GetState() == SettingState.PasswordUnSetting )
+          {
+            ChestControl.Players[args.Player.Index].SetState( SettingState.None );
+            args.Player.SendMessage( "You are no longer selecting a chest.", Color.BlueViolet );
+          }
+          else if ( args.Parameters.Count == 1 )
+          {
+            if ( args.Parameters[0] == "unset" || args.Parameters[0] == "unlock" || args.Parameters[0] == "remove" ||
+                 args.Parameters[0] == "rm" || args.Parameters[0] == "delete" || args.Parameters[0] == "del" )
+            {
+              ChestControl.Players[args.Player.Index].SetState( SettingState.RefillUnSetting );
+              args.Player.SendMessage( "Open a chest to remove refill.", Color.BlueViolet );
+            }
+            else
+            {
+              string parm = args.Parameters[0];
+              int delay = 0;
+              try
+              {
+                delay = Convert.ToInt32( parm );
+                ChestControl.Players[args.Player.Index].RefillDelay = delay;
+                ChestControl.Players[args.Player.Index].SetState( SettingState.RefillSetting );
+                args.Player.SendMessage( "Open a chest to set timed refill of " + delay + " seconds.", Color.BlueViolet );
+              }
+              catch ( FormatException )
+              {
+                args.Player.SendMessage( "You must provide a time delay!", Color.Red );
+                return;
+              } // catch
+
+            }  // else
+          }
+          else
+          {
+            args.Player.SendMessage( "You must provide a time delay!", Color.Red );
+            return;
+          }
+        }
+
+        private static void UnLockChest( CommandArgs args )
         {
             if (ChestControl.Players[args.Player.Index].GetState() == SettingState.UnLocking)
             {

@@ -6,6 +6,7 @@ using System.Threading;
 using Hooks;
 using TShockAPI;
 using Terraria;
+using System.Reflection;
 
 namespace ChestControl
 {
@@ -16,6 +17,7 @@ namespace ChestControl
         public static readonly string ChestLogPath = Path.Combine( TShock.SavePath, "log_ChestControl.txt" );
         public static CPlayer[] Players = new CPlayer[Main.maxNetPlayers];
         public static ChestDbManager chestDbManager;
+        internal static readonly Version VersionNum = Assembly.GetExecutingAssembly().GetName().Version;
 
         public ChestControl(Main game)
             : base(game)
@@ -30,7 +32,7 @@ namespace ChestControl
 
         public override Version Version
         {
-            get { return new Version(2, 2, 2, 5); }
+            get { return VersionNum; }
         }
 
         public override string Author
@@ -106,7 +108,7 @@ namespace ChestControl
                 case PacketTypes.ChestGetContents:
                     if (!e.Handled)
                         using (var data = new MemoryStream(e.Msg.readBuffer, e.Index, e.Length))
-                        {
+                         try {
                             var reader = new BinaryReader(data);
                             int x = reader.ReadInt32();
                             int y = reader.ReadInt32();
@@ -300,9 +302,17 @@ namespace ChestControl
                                         if (chest.HasOwner())
                                             if (chest.IsOwnerConvert(player))
                                             {
-                                                chest.SetRefill(true);
-                                                player.SendMessage("This chest is will now always refill with items.",
-                                                    Color.Red);
+                                              chest.SetRefill( true );
+                                              if ( player.RefillDelay == 0 )
+                                              {
+                                                player.SendMessage( "This chest will now refill with items.", Color.Red );
+                                              } // if
+                                              else
+                                              {
+                                                chest.SetRefillDelay( player.RefillDelay );
+                                                player.SendMessage( "This chest will now refill with items after a " + player.RefillDelay + " second delay.", Color.Red );
+                                                player.RefillDelay = 0;
+                                              } // else
                                             }
                                             else
                                             {
@@ -311,17 +321,21 @@ namespace ChestControl
                                             }
                                         else
                                         {
-                                            chest.SetID(id);
-                                            chest.SetPosition(x, y);
-                                            chest.SetOwner(player);
-                                            chest.SetRefill(true);
+                                          chest.SetID( id );
+                                          chest.SetPosition( x, y );
+                                          chest.SetOwner( player );
+                                          chest.SetRefill( true );
+                                          if ( player.RefillDelay == 0 )
+                                            player.SendMessage( "This chest will now refill with items, with you as owner.", Color.Red );
+                                          else
+                                          {
+                                            chest.SetRefillDelay( player.RefillDelay );
+                                            player.SendMessage( "This chest will now refill with items after a " + player.RefillDelay + " second delay, with you as owner.", Color.Red );
+                                            player.RefillDelay = 0;
+                                          } // else
+                                        } // else
 
-                                            player.SendMessage(
-                                                "This chest is will now always refill with items, with you as owner.",
-                                                Color.Red);
-                                        }
-
-                                        //end player setting
+                                        // end player setting
                                         player.SetState(SettingState.None);
                                         break;
 
@@ -346,8 +360,7 @@ namespace ChestControl
                                                 chest.SetOwner(player);
                                                 chest.SetRefill(false);
 
-                                                player.SendMessage("This chest will no longer refill with items",
-                                                    Color.Red);
+                                                player.SendMessage("This chest will no longer refill with items", Color.Red);
                                             }
                                         else
                                             player.SendMessage("This chest is not refilling!", Color.Red);
@@ -361,8 +374,7 @@ namespace ChestControl
                                             if (chest.IsLocked())
                                                 if (chest.GetPassword() == "")
                                                 {
-                                                    player.SendMessage("This chest can't be unlocked with password!",
-                                                        Color.Red);
+                                                    player.SendMessage("This chest can't be unlocked with password!", Color.Red);
                                                     naggedAboutLock = true;
                                                 }
                                                 else if (chest.IsOwnerConvert(player))
@@ -397,126 +409,172 @@ namespace ChestControl
                                 if (tplayer.Group.HasPermission("showchestinfo")) //if player should see chest info
                                     player.SendMessage(
                                         string.Format(
-                                            "Chest Owner: {0} || Public: {1} || RegionShare: {2} || Password: {3} || Refill: {4}",
+                                            "Chest Owner: {0} || Public: {1} || RegionShare: {2} || Password: {3} || Refill: {4} || Delay: {5}",
                                             chest.GetOwner() == "" ? "-None-" : chest.GetOwner(),
-                                            chest.IsLocked() ? "No" : "Yes", chest.IsRegionLocked() ? "Yes" : "No",
+                                            chest.IsLocked() ? "No" : "Yes", 
+                                            chest.IsRegionLocked() ? "Yes" : "No",
                                             chest.GetPassword() == "" ? "No" : "Yes",
-                                            chest.IsRefill() ? "Yes" : "No"), Color.Yellow);
+                                            chest.IsRefill() ? "Yes" : "No",
+                                            chest.GetRefillDelay() ), Color.Yellow );
 
                                 if (!tplayer.Group.HasPermission("openallchests") && !chest.IsOpenFor(player))
-                                    //if player doesnt has permission to see inside chest, then break and message
-                                {
+                                { // if player doesnt has permission to see inside chest, then send message and break
                                     e.Handled = true;
                                     if (!naggedAboutLock)
-                                        player.SendMessage(
-                                            chest.GetPassword() != ""
+                                        player.SendMessage( chest.GetPassword() != ""
                                                 ? "This chest is magically locked with password. ( Use \"/cunlock PASSWORD\" to unlock it. )"
                                                 : "This chest is magically locked.", Color.IndianRed);
                                     return;
-                                }
-                            }
+                                } // if
+
+// +++++++++++++++++++++++++++++++++++++++++++++++++++
+                                if ( chest.IsOpenFor( player ) )
+                                  if ( chest.IsRefill() )
+                                    if ( chest.GetRefillDelay() > 0 )
+                                    {
+                                      //player.SendMessage( "This chest has a refill delay of " + chest.GetRefillDelay() + " seconds", Color.Gold );
+                                      if ( chest.HasRefillTimerExpired() ) // delay has elapsed, refill chest
+                                      {
+                                        chest.RefillChest();
+                                        //Players[e.Msg.whoAmI].SendMessage( "Refilled", Color.Green );
+                                      } // if
+                                      else
+                                        if ( chest.GetRefillDelayRemaining() == chest.GetRefillDelay() )
+                                          Players[e.Msg.whoAmI].SendMessage( "This chest has a refill delay of " + chest.GetRefillDelay() + " seconds", Color.Blue );
+                                        else
+                                          Players[e.Msg.whoAmI].SendMessage( "Refill will occur in " + chest.GetRefillDelayRemaining() + " seconds", Color.Orange );
+                                    } // if
+                                    //else // immediate refill
+                                      //player.SendMessage( "This chest refills immediately", Color.Green );
+                                  //else
+                                    //player.SendMessage( "You can open this chest", Color.White );
+
+                            } // if (id != -1)
+
                             if (player.GetState() != SettingState.None)
                                 //if player is still setting something - end his setting
                                 player.SetState(SettingState.None);
-                        } // using MemoryStream
+                      } // try using MemoryStream
+                      catch ( Exception ex )
+                      {
+                        Log.Write( ex.ToString(), LogLevel.Error );
+                      }
                     break;
-                case PacketTypes.TileKill:
-                case PacketTypes.Tile:
-                    using (var data = new MemoryStream(e.Msg.readBuffer, e.Index, e.Length))
-                        try
-                        {
-                            var reader = new BinaryReader(data);
-                            if (e.MsgID == PacketTypes.Tile)
-                            {
-                                byte type = reader.ReadByte();
-                                if (!(type == 0 || type == 4))
-                                    return;
-                            }
-                            int x = reader.ReadInt32();
-                            int y = reader.ReadInt32();
-                            reader.Close();
-
-                            if (Chest.TileIsChest(x, y)) //if is Chest
-                            {
-                                int id = Terraria.Chest.FindChest(x, y);
-                                CPlayer player = Players[e.Msg.whoAmI];
-                                TSPlayer tplayer = TShock.Players[e.Msg.whoAmI];
-
-                                //dirty fix for finding chest, try to find chest point around
-                                if (id == -1)
-                                    try
-                                    {
-                                        id = Terraria.Chest.FindChest(x - 1, y); //search one tile left
-                                        if (id == -1)
-                                        {
-                                            id = Terraria.Chest.FindChest(x - 1, y - 1);
-                                            //search one tile left and one tile up
-                                            if (id == -1)
-                                                id = Terraria.Chest.FindChest(x, y - 1); //search one tile up
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Log.Write(ex.ToString(), LogLevel.Error);
-                                    }
-
-                                if (id != -1) //if have found chest
-                                {
-                                  Chest chest = chestDbManager.GetChest( id );
-                                    if (chest.HasOwner()) //if owned stop removing
-                                    {
-                                        if (tplayer.Group.HasPermission("removechestprotection") ||
-                                            chest.IsOwnerConvert(player))
-                                            //display more verbose info to player who has permission to remove protection on this chest
-                                            player.SendMessage(
-                                                "This chest is protected. To remove it, first remove protection using \"/cunset\" command.",
-                                                Color.Red);
-                                        else
-                                            player.SendMessage("This chest is protected!", Color.Red);
-
-                                        player.SendTileSquare(x, y);
-                                        e.Handled = true;
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Write(ex.ToString(), LogLevel.Error);
-                        }
-                    break;
+// ---------------------------------------------------------------------------------------
                 case PacketTypes.ChestItem: // this occurs when a player grabs item from or puts item into chest
                     using (var data = new MemoryStream(e.Msg.readBuffer, e.Index, e.Length))
-                    {
+                      try {
                         var reader = new BinaryReader(data);
                         short id = reader.ReadInt16();
                         byte slot = reader.ReadByte();
                         byte stack = reader.ReadByte();
                         byte prefix = reader.ReadByte();
-                        short type = reader.ReadByte();
+                        short type = reader.ReadInt16(); // formerly ReadByte()
+                        reader.Close();
+
                         if (id != -1)
                         {
                             Chest chest = chestDbManager.GetChest( id );
                             if ( chest.IsRefill() )  
-                            { /* Setting e.Handled prevents TShock / Terraria from processing this message
-                               * In this case, it causes Terraria to ignore chest interactions (takes from & adds to)
-                               */
-
-                                e.Handled = true;
-                            }
-                            if (!e.Handled)
                             {
-                                var item = Main.chest[id].item[slot];
-                                var newitem = new Item();
-                                newitem.netDefaults(type);
-                                newitem.Prefix(prefix);
-                                newitem.AffixName();
-                                Log.Write( string.Format( "{0}({1}) in slot {2} in chest at {3}x{4} was modified to {5}({6}) by {7}",
-                                    item.name, item.stack, slot, Main.chest[id].x, Main.chest[id].y, newitem.name, stack, TShock.Players[e.Msg.whoAmI].UserAccountName),
-                                    LogLevel.Info, false);
-                            }
+                              if ( chest.GetRefillDelay() > 0 )
+                              {
+                                //Players[e.Msg.whoAmI].SendMessage( "This chest refills after a delay of " + chest.GetRefillDelay() + " seconds", Color.Violet );
+                                chest.StartRefillDelay();
+                              } // if
+                              else // no refill delay - ignore action
+                              {
+                                /* Setting e.Handled prevents TShock / Terraria from processing this message
+                                 * In this case, it causes Terraria to ignore chest interactions (takes from & adds to)
+                                 */
+                                //Players[e.Msg.whoAmI].SendMessage( "Chest refilled", Color.Thistle );
+                                e.Handled = true;
+                              } // else
+                            } // if ( chest.GetRefillDelay() > 0 )
+
+                            //if (!e.Handled)
+                            //{
+                            //    var item = Main.chest[id].item[slot];
+                            //    var newitem = new Item();
+                            //    newitem.netDefaults(type);
+                            //    newitem.Prefix(prefix);
+                            //    newitem.AffixName();
+                            //    String playerName = (string.IsNullOrEmpty( TShock.Players[e.Msg.whoAmI].UserAccountName )) ? Players[e.Msg.whoAmI].Name : TShock.Players[e.Msg.whoAmI].UserAccountName;
+                            //    Log.Write( string.Format( "Item {0}({1}) in slot {2} in chest at {3}x{4} was modified to {5}({6}) by {7}",
+                            //        item.name, item.stack, slot, Main.chest[id].x, Main.chest[id].y, newitem.name, stack, playerName ),
+                            //        LogLevel.Info, false );
+                            //} // if (!e.Handled)
+
+                        } // if (id != -1)
+                      } // try using MemoryStream
+                      catch ( Exception ex )
+                      {
+                        Log.Write( ex.ToString(), LogLevel.Error );
+                      }
+                    break;
+// ===========================================================
+                case PacketTypes.TileKill:
+                case PacketTypes.Tile:
+                    using ( var data = new MemoryStream( e.Msg.readBuffer, e.Index, e.Length ) )
+                      try
+                      {
+                        var reader = new BinaryReader( data );
+                        if ( e.MsgID == PacketTypes.Tile )
+                        {
+                          byte type = reader.ReadByte();
+                          if ( !(type == 0 || type == 4) )
+                            return;
                         }
-                    }
+                        int x = reader.ReadInt32();
+                        int y = reader.ReadInt32();
+                        reader.Close();
+
+                        if ( Chest.TileIsChest( x, y ) ) //if is Chest
+                        {
+                          int id = Terraria.Chest.FindChest( x, y );
+                          CPlayer player = Players[e.Msg.whoAmI];
+                          TSPlayer tplayer = TShock.Players[e.Msg.whoAmI];
+
+                          //dirty fix for finding chest, try to find chest point around
+                          if ( id == -1 )
+                            try
+                            {
+                              id = Terraria.Chest.FindChest( x - 1, y ); //search one tile left
+                              if ( id == -1 )
+                              {
+                                id = Terraria.Chest.FindChest( x - 1, y - 1 );
+                                //search one tile left and one tile up
+                                if ( id == -1 )
+                                  id = Terraria.Chest.FindChest( x, y - 1 ); //search one tile up
+                              }
+                            }
+                            catch ( Exception ex )
+                            {
+                              Log.Write( ex.ToString(), LogLevel.Error );
+                            }
+
+                          if ( id != -1 ) //if have found chest
+                          {
+                            Chest chest = chestDbManager.GetChest( id );
+                            if ( chest.HasOwner() ) //if owned stop removing
+                            {
+                              if ( tplayer.Group.HasPermission( "removechestprotection" ) ||
+                                  chest.IsOwnerConvert( player ) )
+                                //display more verbose info to player who has permission to remove protection on this chest
+                                player.SendMessage( "This chest is protected. To remove it, first remove protection using \"/cunset\" command.", Color.Red );
+                              else
+                                player.SendMessage( "This chest is protected!", Color.Red );
+
+                              player.SendTileSquare( x, y );
+                              e.Handled = true;
+                            }
+                          }
+                        }
+                      }
+                      catch ( Exception ex )
+                      {
+                        Log.Write( ex.ToString(), LogLevel.Error );
+                      }
                     break;
             } // switch
         }

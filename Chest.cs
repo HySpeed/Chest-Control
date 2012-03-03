@@ -3,12 +3,14 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using TShockAPI;
 using Terraria;
+using System;
+using System.Diagnostics;
 
 namespace ChestControl
 {
     internal class Chest
     {
-        private string HashedPassword;
+        private   string HashedPassword;
         protected int ID;
         protected bool Locked;
         protected string Owner;
@@ -17,6 +19,9 @@ namespace ChestControl
         protected Item[] RefillItems;
         protected bool RegionLock;
         protected int WorldID;
+        protected int RefillDelayLength;
+        protected int RefillDelayRemaining;
+        protected Stopwatch stopWatch = new Stopwatch();
 
         public Chest()
         {
@@ -29,6 +34,8 @@ namespace ChestControl
             Refill = false;
             HashedPassword = "";
             RefillItems = new Item[20];
+            RefillDelayLength = 0;
+            RefillDelayRemaining = 0;
         }
 
         public void Reset()
@@ -39,6 +46,8 @@ namespace ChestControl
             Refill = false;
             HashedPassword = "";
             RefillItems = new Item[20];
+            RefillDelayLength = 0;
+            RefillDelayRemaining = 0;
         }
 
         public void SetID(int id)
@@ -147,7 +156,18 @@ namespace ChestControl
         public void SetRefill(bool refill)
         {
             Refill = refill;
-            RefillItems = refill ? Main.chest[ID].item : new Item[20];
+            if ( refill )
+            {
+              SetRefillItems();
+            } // if
+            else
+            {
+              RefillItems = new Item[20];
+            } // else
+            RefillDelayLength    = 0;
+            RefillDelayRemaining = 0;
+            stopWatch.Stop();
+            stopWatch.Reset();
         }
 
         public Item[] GetRefillItems()
@@ -166,25 +186,108 @@ namespace ChestControl
             return list;
         }
 
-        public void SetRefillItems(string raw)
+        /* This creates an 'unlinked' copy because simply doing this:
+         *  RefillItems = Main.chest[ID].item;
+         *  will 'link' the objects. That results in changes 
+         *  to Main.chest[ID].item being passed on to RefillItems. :(
+         */
+        public void SetRefillItems()
         {
-            string[] array = raw.Split(',');
-            for (int i = 0; i < array.Length && i < 20; i++)
-            {
-                var item = new Item();
-                item.SetDefaults(array[i]);
-                RefillItems[i] = item;
-            }
-            //if (set)
-            //    setChestItems(RefillItems);
+          RefillItems = DeepCopyItems( Main.chest[ID].item );
         }
 
-        /*public void SetChestItems(Terraria.Item[] items)
-        {
-            Terraria.Main.chest[ID].item = items;
-        }*/
+        // Not used - refill items are pulled from inventory when refill is set
+        //public void SetRefillItems( string raw ) {}
 
-        public bool IsOpenFor(CPlayer player)
+        // Not used
+        //public void SetChestItems(Terraria.Item[] items) { Terraria.Main.chest[ID].item = items; }
+
+        public void SetRefillDelay( int delay )
+        {
+          RefillDelayLength    = delay;
+          RefillDelayRemaining = delay;
+        }
+
+        public int GetRefillDelay()
+        {
+          return RefillDelayLength;
+        }
+
+        /* If the countdown has not begun, start it */
+        public void StartRefillDelay()
+        {
+          //if ( GetRefillDelayRemaining() == GetRefillDelay() )
+          if ( !stopWatch.IsRunning )
+          {
+            //Log.Write( "Starting Delay (id:" + ID + ")" + "[" + RefillItems[0].name + "]" + "{" + GetRefillDelayRemaining() + "}", LogLevel.Debug );
+            stopWatch.Reset();
+            stopWatch.Start();
+          } // if
+        }
+
+        public void SetRefillDelayRemaining( int remaining )
+        {
+          RefillDelayRemaining = remaining;
+        }
+
+        public int GetRefillDelayRemaining()
+        {
+          int result = 0;
+          TimeSpan ts = stopWatch.Elapsed;
+          int min = ts.Minutes;
+          int sec = ts.Seconds;
+          int elapsed = (min * 60) + sec;
+
+          result = RefillDelayRemaining - elapsed; // ? can this be replaced with RefillDelayLength?
+          //Log.Write( "RDR (id:" + ID + ")" + "[" + RefillItems[0].name + "]" + "{" + result + "}", LogLevel.Debug );
+          return result;
+        }
+
+
+        public bool HasRefillTimerExpired()
+        {
+          bool result = false;
+          if ( GetRefillDelayRemaining() <= 0 )
+            result = true;
+          return result;
+        }
+
+
+        public void RefillChest()
+        {
+          Log.Write( "Refill (id:" + ID + ")" + "[" + RefillItems[0].name + "]", LogLevel.Info );
+          Main.chest[ID].item = DeepCopyItems( RefillItems );
+          stopWatch.Stop();
+          stopWatch.Reset();
+          SetRefillDelayRemaining( GetRefillDelay() );  // reset delay
+        }
+
+        private Item[] DeepCopyItems( Item[] source )
+        {
+          Item[] result = null;
+
+          if ( source.Length > 0 )
+          {
+            result = new Item[source.Length];
+            for ( int i = 0; i < source.Length; i++ )
+            {
+              var oldItem = source[i];
+              var newItem = new Item();
+              newItem.netDefaults( oldItem.netID );
+              newItem.Prefix( oldItem.prefix );
+              newItem.AffixName();
+              //if ( oldItem.type != 0 )
+              //  Log.Write( "DCI (id:" + ID + ") " + oldItem.name + "," + newItem.name + "," + oldItem.netID + "," + newItem.netID, LogLevel.Debug );
+
+              result[i] = newItem;
+              result[i].stack = oldItem.stack;
+            } // for
+          } // if
+
+          return result;
+        }
+
+        public bool IsOpenFor( CPlayer player )
         {
             if (!IsLocked()) //if chest not locked skip all checks
                 return true;

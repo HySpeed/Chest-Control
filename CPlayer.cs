@@ -6,6 +6,7 @@ namespace ChestControl
     public class CPlayer : TSPlayer
     {
         public string PasswordForChest = "";
+        public int    RefillDelay = 0;
         protected SettingState ChestState = SettingState.None;
         protected List<int> UnlockedChests = new List<int>();
 

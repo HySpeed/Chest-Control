@@ -40,7 +40,7 @@ namespace ChestControl
     // ChestDbManager ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     public ChestDbManager( IDbConnection db )
     {
-      Log.Write( "Initiating ChestControl...", LogLevel.Info );
+      Log.Write( "Initiating ChestControl (v" + ChestControl.VersionNum + ") ...", LogLevel.Info );
       
       database = db;
       var table = new SqlTable( tableName,
@@ -92,17 +92,18 @@ namespace ChestControl
               int    isLocked = reader.Get<int>( "IsLocked" );
               int    isRegionLocked = reader.Get<int>( "IsRegionLocked" );
               string password = reader.Get<string>( "Password" );
-              int    isRefill = reader.Get<int>( "IsRefill" );
+              int    isRefill = reader.Get<int>(    "IsRefill" );
               int    refillDelay = reader.Get<int>( "RefillDelay" );
 
               Chest chest = new Chest();
               chest.SetID( chestID );
               chest.SetPosition( new Vector2( x, y ) );
               chest.SetOwner( owner );
-              if ( isLocked != 0 ) { chest.Lock(); }
+              if ( isLocked != 0  ) { chest.Lock(); }
               if ( isRegionLocked != 0 ) { chest.regionLock( true ); }
               if ( password != "" ) { chest.SetPassword( password, true ); }
-              if ( isRefill != 0 ) { chest.SetRefill( true ); }
+              if ( isRefill != 0  ) { chest.SetRefill( true ); }
+              chest.SetRefillDelay( refillDelay );
 
               // check if chest still exists in world
               if ( !Chest.TileIsChest( chest.GetPosition() ) )
@@ -115,14 +116,28 @@ namespace ChestControl
               {
                 int id = Terraria.Chest.FindChest( (int) chest.GetPosition().X, (int) chest.GetPosition().Y );
                 if ( id != -1 )
-                  chest.SetID( id );
+                {
+                  Log.Write( "found chest: " + chest.GetID() + ":" + refillDelay, LogLevel.Debug );
+                  chest.SetID( id );  // chest id and contents may have changed
+                  if ( isRefill != 0 ) { chest.SetRefill( true ); } // delayed refill stores contents
+                  chest.SetRefillDelay( refillDelay );
+                }
                 else // moved, reset it
                   chest.Reset();
               } // if
 
               if ( Chests.Length > chest.GetID() ) { 
                 Chests[chest.GetID()] = chest;
-                Log.Write( "[LoadChests]: " + chest.GetOwner() + "(id:" + chest.GetID() + ")", LogLevel.Info );
+                Item[] refillItems = chest.GetRefillItems();
+                Item item;
+                string itemName = ".";
+                item = refillItems[0];
+                if ( item != null ) itemName = item.name;
+                Log.Write( "[LoadChests]: " +
+                           "(id:"  + chest.GetID() + ")" + 
+                           "(rf:"  + chest.IsRefill() + ")" +
+                           "(rd:"  + chest.GetRefillDelay() + ")" +
+                           "([0]:" + itemName + ")", LogLevel.Info );
               } // if
 
             } // while
@@ -193,7 +208,7 @@ namespace ChestControl
                 if ( bool.Parse( args[7] ) ) // refill
                 {
                   chest.SetRefill( true );
-                  // chest.SetRefillItems(args[8]); // not used - Terraria stores chest contents
+                  //- chest.SetRefillItems(args[8]); // not used - Terraria stores chest contents
                 } // if
 
               // check if chest still exists in world
@@ -261,8 +276,6 @@ namespace ChestControl
 
       foreach ( Chest chest in Chests )
         if ( chest != null )
-          //return; // it shouldn't EVER be null
-        //else
         {
           try
           {
@@ -270,9 +283,13 @@ namespace ChestControl
             {
               if ( chest.GetOwner() != "" )
               {
-                Log.Write( "[SaveChests] Insert: " + chest.GetOwner() + "(id:" + chest.GetID() + ")", LogLevel.Info );
+                chest.RefillChest(); // if the chest is not refilled when shutdown, it won't be full on reload.
+                Log.Write( "[SaveChests] Insert: " + chest.GetOwner() + 
+                           "(id:" + chest.GetID() + ")" + 
+                           "(rf:" + chest.IsRefill() + ")" +
+                           "(rd:" + chest.GetRefillDelay() + ")", LogLevel.Info );
                 database.Query( "INSERT INTO " + tableName + " ( ChestID, X, Y, Owner, WorldID, IsLocked, IsRegionLocked, Password, IsRefill, RefillDelay ) VALUES (@0, @1, @2, @3, @4, @5, @6, @7, @8, @9);",
-                  chest.GetID(), chest.GetPosition().X, chest.GetPosition().Y, chest.GetOwner(), Main.worldID.ToString(), chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), 0 );
+                  chest.GetID(), chest.GetPosition().X, chest.GetPosition().Y, chest.GetOwner(), Main.worldID.ToString(), chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay() );
               } // if
             } // if
           } // try
@@ -280,7 +297,7 @@ namespace ChestControl
           {
             Log.Write( "[SaveChests] Insert: " + chest.GetOwner() + "(" + chest.GetID() + ") : " + ex.ToString(), LogLevel.Error );
           } // catch
-        } // else
+        } // if
 
         return;
     } // SaveChests ------------------------------------------------------------

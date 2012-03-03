@@ -1,3 +1,5 @@
-2.2.2.5
-Update: Converted from text file to tshock database
+2.2.2.9
+Update 2.2.2.9: Save Refill chests on world exit / save
+Update 2.2.2.6: Added Timed Refill
+Update 2.2.2.5: Converted from text file to tshock database
 Update to 1.1.2. Fixes issue with chest protection not being loaded/saved properly.
