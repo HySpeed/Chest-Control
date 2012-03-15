@@ -14,7 +14,8 @@ namespace ChestControl
     public class ChestControl : TerrariaPlugin
     {
         private static bool Init;
-        public static readonly string ChestLogPath = Path.Combine( TShock.SavePath, "log_ChestControl.txt" );
+        private static string datetimeString = string.Format("{0:yyyy-MM-dd_hh-mm-ss}",DateTime.Now);
+        public static readonly string ChestLogPath = Path.Combine( TShock.SavePath, "ChestControl_" + datetimeString + ".log" );
         public static CPlayer[] Players = new CPlayer[Main.maxNetPlayers];
         public static ChestDbManager chestDbManager;
         internal static readonly Version VersionNum = Assembly.GetExecutingAssembly().GetName().Version;

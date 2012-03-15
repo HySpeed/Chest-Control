@@ -19,6 +19,8 @@ _/cunlock_  _password_ -  Unlocks and open chest
 
 _/crefill_ - Sets chest to refill - _/crefill_ _remove_ to disable refill
 
+_/ctrefill_  _time_ - Sets chest to refill after _time_ seconds - _/crefill_ _remove_ to disable refill
+
 ### Permissions:
 Everyone can use _/cunlock_ command.
 
@@ -38,3 +40,4 @@ _refillchest_ - permission for admins - can set chests to refill
 - 2.2.2.5: use another format than txt files - use TShock DB?
 - 2.2.2.6: delayed timer
 - 2.2.2.9: save refill chests on world exit / save
+- 2.2.3.0: log file uses datetimestamp filename
