@@ -1,4 +1,5 @@
-2.2.3.0
+2.2.3.2
+Update 2.2.3.2: save chest info when it is changed
 Update 2.2.3.0: log file uses datetimestamp filename
 Update 2.2.2.9: Save Refill chests on world exit / save
 Update 2.2.2.6: Added Timed Refill

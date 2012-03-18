@@ -40,19 +40,19 @@ namespace ChestControl
     // ChestDbManager ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     public ChestDbManager( IDbConnection db )
     {
-      Log.Write( "Initiating ChestControl (v" + ChestControl.VersionNum + ") ...", LogLevel.Info );
+      Log.Write( "Initiating ChestControl (v" + ChestControl.VersionNum + ").", LogLevel.Info );
       
       database = db;
       var table = new SqlTable( tableName,
-                                new SqlColumn( "ChestID",  MySqlDbType.Int32 ),
-                                new SqlColumn( "X",        MySqlDbType.Int32 ),
-                                new SqlColumn( "Y",        MySqlDbType.Int32 ),
-                                new SqlColumn( "Owner",    MySqlDbType.Text  ),     
-                                new SqlColumn( "WorldID",  MySqlDbType.Text  ),   // TODO add to chest object
-                                new SqlColumn( "IsLocked", MySqlDbType.Int32 ),
+                                new SqlColumn( "ChestID",     MySqlDbType.Int32 ),
+                                new SqlColumn( "X",           MySqlDbType.Int32 ),
+                                new SqlColumn( "Y",           MySqlDbType.Int32 ),
+                                new SqlColumn( "Owner",       MySqlDbType.Text  ),     
+                                new SqlColumn( "WorldID",     MySqlDbType.Text  ),
+                                new SqlColumn( "IsLocked",    MySqlDbType.Int32 ),
                                 new SqlColumn( "IsRegionLocked", MySqlDbType.Int32 ),
-                                new SqlColumn( "Password", MySqlDbType.Text  ),
-                                new SqlColumn( "IsRefill", MySqlDbType.Int32 ),
+                                new SqlColumn( "Password",    MySqlDbType.Text  ),
+                                new SqlColumn( "IsRefill",    MySqlDbType.Int32 ),
                                 new SqlColumn( "RefillDelay", MySqlDbType.Int32 )
                               );
 
@@ -77,7 +77,7 @@ namespace ChestControl
         Chests[i] = new Chest();
 
       // older versions used text file, if it exists, read that.
-      if ( !LoadFromTexTFile() )
+      if ( !LoadFromTextFile() )
       {
         try
         {
@@ -99,10 +99,10 @@ namespace ChestControl
               chest.SetID( chestID );
               chest.SetPosition( new Vector2( x, y ) );
               chest.SetOwner( owner );
-              if ( isLocked != 0  ) { chest.Lock(); }
+              if ( isLocked != 0  )      { chest.Lock(); }
               if ( isRegionLocked != 0 ) { chest.regionLock( true ); }
-              if ( password != "" ) { chest.SetPassword( password, true ); }
-              if ( isRefill != 0  ) { chest.SetRefill( true ); }
+              if ( password != "" )      { chest.SetPassword( password, true ); }
+              if ( isRefill != 0  )      { chest.SetRefill( true ); }
               chest.SetRefillDelay( refillDelay );
 
               // check if chest still exists in world
@@ -145,14 +145,14 @@ namespace ChestControl
         } // try
         catch ( Exception ex )
         {
-          Log.Write( ex.ToString(), LogLevel.Error );
+          Log.Write( "! LoadChests: " + ex.ToString(), LogLevel.Error );
         } // catch
       } // if
 
     } // LoadChests ------------------------------------------------------------
 
 
-    // LoadFromTexTFile ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // LoadFromTextFile ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     /* If the legacy file exists, 
      * . read legacy file
      * . populate the chest info
@@ -162,12 +162,13 @@ namespace ChestControl
      * else
      * . return false - chests will be loaded from db
      */ 
-    private bool LoadFromTexTFile()
+    private bool LoadFromTextFile()
     {
       bool result = false;
       string ChestControlDirectory = Path.Combine(TShock.SavePath, "chestcontrol");
       string ChestSaveFileName = Path.Combine(ChestControlDirectory, Main.worldID + ".txt");
 
+      try {
       if ( Directory.Exists( ChestControlDirectory ) )
       {
         if ( File.Exists( ChestSaveFileName ) )
@@ -250,30 +251,19 @@ namespace ChestControl
         } // if - File.Exists
 
       } // if - dir exist
+      } // try
+      catch
+      {
+        Log.Write( "! Error: LoadFromTextFile", LogLevel.Error );
+      } // catch
   
       return result;
-    } // LoadFromTexTFile ------------------------------------------------------
+    } // LoadFromTextFile ------------------------------------------------------
 
 
-    /* 
-     * This coul be more robust with Add / Delete / Update
-     * This model waits until server shutdown, deletes all chests 
-     *  for this world from database, then writes all chests again.
-     */ 
     // SaveChests ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     public void SaveChests()
     {
-      try
-      {
-        //Log.Write( "[SaveChests] Delete All: ", LogLevel.Info );
-        // Delete all chests for this world
-        database.Query( "DELETE FROM " + tableName + " WHERE WorldID=@0", Main.worldID.ToString() );
-      } // try
-      catch ( Exception ex )
-      {
-        Log.Write( "DEL: " + ex.ToString(), LogLevel.Error );
-      } // catch
-
       foreach ( Chest chest in Chests )
         if ( chest != null )
         {
@@ -284,12 +274,7 @@ namespace ChestControl
               if ( chest.GetOwner() != "" )
               {
                 chest.RefillChest(); // if the chest is not refilled when shutdown, it won't be full on reload.
-                Log.Write( "[SaveChests] Insert: " + chest.GetOwner() + 
-                           "(id:" + chest.GetID() + ")" + 
-                           "(rf:" + chest.IsRefill() + ")" +
-                           "(rd:" + chest.GetRefillDelay() + ")", LogLevel.Info );
-                database.Query( "INSERT INTO " + tableName + " ( ChestID, X, Y, Owner, WorldID, IsLocked, IsRegionLocked, Password, IsRefill, RefillDelay ) VALUES (@0, @1, @2, @3, @4, @5, @6, @7, @8, @9);",
-                  chest.GetID(), chest.GetPosition().X, chest.GetPosition().Y, chest.GetOwner(), Main.worldID.ToString(), chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay() );
+                SaveChest( chest.GetID() );
               } // if
             } // if
           } // try
@@ -299,8 +284,74 @@ namespace ChestControl
           } // catch
         } // if
 
-        return;
     } // SaveChests ------------------------------------------------------------
+
+
+    // DeleteChest +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    public void DeleteChest( int id )
+    {
+      try
+      {
+        Log.Write( "[DeleteChest] Delete Chest: " + id, LogLevel.Info );
+        database.Query( "DELETE FROM " + tableName + " WHERE WorldID=@0 AND ChestId=@1", Main.worldID.ToString(), id );
+      } // try
+      catch ( Exception ex )
+      {
+        Log.Write( "DelChest: " + ex.ToString(), LogLevel.Error );
+      } // catch
+    } // DeleteChest -----------------------------------------------------------
+
+
+    // SaveChest +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    public void SaveChest( int id )
+    {
+      bool  recordExists = false;
+      Chest chest = GetChest( id );
+
+      try 
+      {
+        using ( var reader = database.QueryReader( "SELECT ChestId FROM " + tableName + " WHERE WorldID=@0 AND ChestID=@1", Main.worldID.ToString(), id ) )
+        {
+          if ( reader.Read() ) 
+          {
+            recordExists = true;
+          } // if
+        } // using
+
+        if ( recordExists ) 
+        {
+          Log.Write( "[UpdateChests] Update: " + chest.GetOwner() + 
+                      "(id:" + chest.GetID() + ")" + 
+                      "(rf:" + chest.IsRefill() + ")" +
+                      "(rd:" + chest.GetRefillDelay() + ")", LogLevel.Info );
+        database.Query( "UPDATE " + tableName + 
+                        " SET IsLocked = @0, IsRegionLocked = @1, Password = @2, IsRefill = @3, RefillDelay = @4" +
+                        " WHERE ChestId = @5;", 
+                        chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay(), chest.GetID() );
+        } // if
+        else 
+        {
+          Log.Write( "[UpdateChests] Insert: " + chest.GetOwner() + 
+                      "(id:" + chest.GetID() + ")" + 
+                      "(rf:" + chest.IsRefill() + ")" +
+                      "(rd:" + chest.GetRefillDelay() + ")", LogLevel.Info );
+          database.Query( "INSERT INTO " + tableName + " ( ChestID, X, Y, Owner, WorldID, IsLocked, IsRegionLocked, Password, IsRefill, RefillDelay ) VALUES (@0, @1, @2, @3, @4, @5, @6, @7, @8, @9);",
+                          chest.GetID(), chest.GetPosition().X, chest.GetPosition().Y, chest.GetOwner(), Main.worldID.ToString(), chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay() );
+        } // else
+
+        // this has issues with converting bool to int
+        //Log.Write( "~ " + "INSERT OR REPLACE INTO " + tableName + " ( ChestID, X, Y, Owner, WorldID, IsLocked, IsRegionLocked, Password, IsRefill, RefillDelay )" + 
+        //                string.Format( " VALUES ( {0}, {1}, {2}, \"{3}\", {4}, {5}, {6}, \"{7}\", {8}, {9} );", 
+        //chest.GetID(), chest.GetPosition().X, chest.GetPosition().Y, chest.GetOwner(), Main.worldID.ToString(), chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay() ), LogLevel.Info );
+        //database.Query( "INSERT OR REPLACE INTO " + tableName + " ( ChestID, X, Y, Owner, WorldID, IsLocked, IsRegionLocked, Password, IsRefill, RefillDelay )" + 
+        //                string.Format( " VALUES ( {0}, {1}, {2}, \"{3}\", {4}, {5}, {6}, \"{7}\", {8}, {9} );", 
+        //chest.GetID(), chest.GetPosition().X, chest.GetPosition().Y, chest.GetOwner(), Main.worldID.ToString(), chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay() ) );
+      } // try
+      catch ( Exception ex ) 
+      {
+        Log.Write( "[UpdateChest] Update: " + chest.GetOwner() + "(" + chest.GetID() + ") : " + ex.ToString(), LogLevel.Error );
+      } // catch
+    } // SaveChest -------------------------------------------------------------
 
 
     // VerifyChest +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

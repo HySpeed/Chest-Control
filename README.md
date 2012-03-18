@@ -41,3 +41,5 @@ _refillchest_ - permission for admins - can set chests to refill
 - 2.2.2.6: delayed timer
 - 2.2.2.9: save refill chests on world exit / save
 - 2.2.3.0: log file uses datetimestamp filename
+- 2.2.3.1: update existing records instead of delete
+- 2.2.3.2: save chest info when it is changed
