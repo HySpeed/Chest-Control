@@ -11,7 +11,7 @@ namespace ChestControl
     internal class Chest
     {
         private   string HashedPassword;
-        protected int ID;
+        protected int chestId;
         protected bool Locked;
         protected string Owner;
         protected Vector2 Position;
@@ -25,7 +25,7 @@ namespace ChestControl
 
         public Chest()
         {
-            ID = -1;
+            chestId = -1;
             WorldID = Main.worldID;
             Owner = "";
             Position = new Vector2(0, 0);
@@ -52,12 +52,12 @@ namespace ChestControl
 
         public void SetID(int id)
         {
-            ID = id;
+            chestId = id;
         }
 
         public int GetID()
         {
-            return ID;
+            return chestId;
         }
 
         public void SetOwner(string player)
@@ -193,7 +193,7 @@ namespace ChestControl
          */
         public void SetRefillItems()
         {
-          RefillItems = DeepCopyItems( Main.chest[ID].item );
+          RefillItems = DeepCopyItems( Main.chest[chestId].item );
         }
 
         // Not used - refill items are pulled from inventory when refill is set
@@ -255,11 +255,14 @@ namespace ChestControl
 
         public void RefillChest()
         {
-          Log.Write( "Refill (id:" + ID + ")" + "[" + RefillItems[0].name + "]", LogLevel.Info );
-          Main.chest[ID].item = DeepCopyItems( RefillItems );
-          stopWatch.Stop();
-          stopWatch.Reset();
-          SetRefillDelayRemaining( GetRefillDelay() );  // reset delay
+          if ( RefillItems.Length > 0 ) 
+          {
+            Log.Write( "Refill (id:" + chestId + ")" + "[" + RefillItems[0].name + "]", LogLevel.Info );
+            Main.chest[chestId].item = DeepCopyItems( RefillItems );
+            stopWatch.Stop();
+            stopWatch.Reset();
+            SetRefillDelayRemaining( GetRefillDelay() );  // reset delay
+          } // if
         }
 
         private Item[] DeepCopyItems( Item[] source )
@@ -299,7 +302,7 @@ namespace ChestControl
                 return true;
 
             if (HashedPassword != "") //this chest is passworded, so check if user has unlocked this chest
-                if (player.HasAccessToChest(ID)) //has unlocked this chest
+                if (player.HasAccessToChest(chestId)) //has unlocked this chest
                     return true;
 
             if (IsRegionLocked()) //if region lock then check region
@@ -343,9 +346,10 @@ namespace ChestControl
 
         public string GetPassword()
         {
-            return HashedPassword;
+          return HashedPassword;
         }
 
+   
         public static bool TileIsChest(TileData tile)
         {
             return tile.type == 0x15;

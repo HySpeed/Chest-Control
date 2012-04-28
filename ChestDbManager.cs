@@ -145,7 +145,7 @@ namespace ChestControl
         } // try
         catch ( Exception ex )
         {
-          Log.Write( "! LoadChests: " + ex.ToString(), LogLevel.Error );
+          Log.Write( "! [LoadChests]: " + ex.ToString(), LogLevel.Error );
         } // catch
       } // if
 
@@ -280,7 +280,7 @@ namespace ChestControl
           } // try
           catch (Exception ex)
           {
-            Log.Write( "[SaveChests] Insert: " + chest.GetOwner() + "(" + chest.GetID() + ") : " + ex.ToString(), LogLevel.Error );
+            Log.Write( "[SaveChests]: " + chest.GetOwner() + "(" + chest.GetID() + ") : " + ex.ToString(), LogLevel.Error );
           } // catch
         } // if
 
@@ -297,7 +297,7 @@ namespace ChestControl
       } // try
       catch ( Exception ex )
       {
-        Log.Write( "DelChest: " + ex.ToString(), LogLevel.Error );
+        Log.Write( "[DelChest]: " + ex.ToString(), LogLevel.Error );
       } // catch
     } // DeleteChest -----------------------------------------------------------
 
@@ -324,10 +324,10 @@ namespace ChestControl
                       "(id:" + chest.GetID() + ")" + 
                       "(rf:" + chest.IsRefill() + ")" +
                       "(rd:" + chest.GetRefillDelay() + ")", LogLevel.Info );
-        database.Query( "UPDATE " + tableName + 
-                        " SET IsLocked = @0, IsRegionLocked = @1, Password = @2, IsRefill = @3, RefillDelay = @4" +
-                        " WHERE ChestId = @5;", 
-                        chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay(), chest.GetID() );
+          database.Query( "UPDATE " + tableName + 
+                          " SET IsLocked = @0, IsRegionLocked = @1, Password = @2, IsRefill = @3, RefillDelay = @4" +
+                          " WHERE ChestId = @5;", 
+                          chest.IsLocked(), chest.IsRegionLocked(), chest.GetPassword(), chest.IsRefill(), chest.GetRefillDelay(), chest.GetID() );
         } // if
         else 
         {
