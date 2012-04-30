@@ -255,15 +255,37 @@ namespace ChestControl
 
         public void RefillChest()
         {
+          string itemName;
+          Log.Write( "Refill (id:" + chestId + ")" + "[" + RefillItems.Length + "]", LogLevel.Info );
           if ( RefillItems.Length > 0 ) 
           {
-            Log.Write( "Refill (id:" + chestId + ")" + "[" + RefillItems[0].name + "]", LogLevel.Info );
+            itemName = GetFirstItemName();
+            Log.Write( "Refill (id:" + chestId + ")" + "[" + itemName + "]", LogLevel.Info );
             Main.chest[chestId].item = DeepCopyItems( RefillItems );
             stopWatch.Stop();
             stopWatch.Reset();
             SetRefillDelayRemaining( GetRefillDelay() );  // reset delay
           } // if
         }
+
+
+        public string GetFirstItemName()
+        {
+          string result = "";
+
+          for ( int i = 0; i < RefillItems.Length; i++ ) 
+          {
+            if ( RefillItems[i].name.Length > 0 ) 
+            {
+              result = RefillItems[i].name;
+              //Console.WriteLine( "~ i: " + i + ", n: " + result );
+              break;
+            } // if
+          } // for
+
+          return result;
+        } 
+
 
         private Item[] DeepCopyItems( Item[] source )
         {

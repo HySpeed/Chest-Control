@@ -129,15 +129,13 @@ namespace ChestControl
               if ( Chests.Length > chest.GetID() ) { 
                 Chests[chest.GetID()] = chest;
                 Item[] refillItems = chest.GetRefillItems();
-                Item item;
                 string itemName = ".";
-                item = refillItems[0];
-                if ( item != null ) itemName = item.name;
+                itemName = chest.GetFirstItemName();
                 Log.Write( "[LoadChests]: " +
                            "(id:"  + chest.GetID() + ")" + 
                            "(rf:"  + chest.IsRefill() + ")" +
                            "(rd:"  + chest.GetRefillDelay() + ")" +
-                           "([0]:" + itemName + ")", LogLevel.Info );
+                           "(1st:" + itemName + ")", LogLevel.Info );
               } // if
 
             } // while
