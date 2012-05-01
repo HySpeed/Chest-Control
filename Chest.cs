@@ -256,7 +256,7 @@ namespace ChestControl
         public void RefillChest()
         {
           string itemName;
-          Log.Write( "Refill (id:" + chestId + ")" + "[" + RefillItems.Length + "]", LogLevel.Info );
+          //Log.Write( "Refill (id:" + chestId + ")" + "[" + RefillItems.Length + "]", LogLevel.Info );
           if ( RefillItems.Length > 0 ) 
           {
             itemName = GetFirstItemName();
@@ -275,7 +275,7 @@ namespace ChestControl
 
           for ( int i = 0; i < RefillItems.Length; i++ ) 
           {
-            if ( RefillItems[i].name.Length > 0 ) 
+            if ( RefillItems[i] != null ) 
             {
               result = RefillItems[i].name;
               //Console.WriteLine( "~ i: " + i + ", n: " + result );
@@ -297,6 +297,8 @@ namespace ChestControl
             for ( int i = 0; i < source.Length; i++ )
             {
               var oldItem = source[i];
+              if ( oldItem != null ) 
+              {
               var newItem = new Item();
               newItem.netDefaults( oldItem.netID );
               newItem.Prefix( oldItem.prefix );
@@ -306,6 +308,7 @@ namespace ChestControl
 
               result[i] = newItem;
               result[i].stack = oldItem.stack;
+              } // if
             } // for
           } // if
 
