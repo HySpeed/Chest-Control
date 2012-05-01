@@ -256,8 +256,8 @@ namespace ChestControl
         public void RefillChest()
         {
           string itemName;
-          //Log.Write( "Refill (id:" + chestId + ")" + "[" + RefillItems.Length + "]", LogLevel.Info );
-          if ( RefillItems.Length > 0 ) 
+
+          if ( Refill ) 
           {
             itemName = GetFirstItemName();
             Log.Write( "Refill (id:" + chestId + ")" + "[" + itemName + "]", LogLevel.Info );

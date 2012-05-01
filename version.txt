@@ -1,4 +1,5 @@
-2.2.3.5
+2.2.3.7
+Update 2.2.3.7: Removed some Debug messages.
 Update 2.2.3.5: Fixed error on deep copy for refill chests on exit.
 Update 2.2.3.4: really fixed issue with non-refill chests on save.
 Update 2.2.3.3: fixed issue with non-refill chests on save
