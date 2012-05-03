@@ -318,10 +318,10 @@ namespace ChestControl
 
         if ( recordExists ) 
         {
-          Log.Write( "[UpdateChests] Update: " + chest.GetOwner() + 
-                      "(id:" + chest.GetID() + ")" + 
-                      "(rf:" + chest.IsRefill() + ")" +
-                      "(rd:" + chest.GetRefillDelay() + ")", LogLevel.Info );
+          //Log.Write( "[UpdateChests] Update: " + chest.GetOwner() + 
+          //            "(id:" + chest.GetID() + ")" + 
+          //            "(rf:" + chest.IsRefill() + ")" +
+          //            "(rd:" + chest.GetRefillDelay() + ")", LogLevel.Info );
           database.Query( "UPDATE " + tableName + 
                           " SET IsLocked = @0, IsRegionLocked = @1, Password = @2, IsRefill = @3, RefillDelay = @4" +
                           " WHERE ChestId = @5;", 

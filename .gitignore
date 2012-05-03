@@ -1,5 +1,18 @@
-*.suo
-*.user
+# Compiled source #
+###################
+*/bin/*
+*/obj/*
 bin/*
 obj/*
-_Resharper.ChestControl/*
+
+
+# Visual Studio shit Motherfucka #
+##################################
+*.suo
+*.sdf
+*.opensdf
+*.cache
+*.pdb
+*.csproj.user
+*/_ReSharper*/*
+*.user
